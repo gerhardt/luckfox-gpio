@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LuckFox Pico GPIO Control</title>
+    <link rel="stylesheet" href="/css">
+</head>
+<body>
+    <!-- Organization branding displayed in top-right corner -->
+    <div class="brand-identity">light &amp; matter group</div>
+    
+    <!-- Interactive color spectrum bar at bottom of page -->
+    <div class="spectrum-bar">
+        <div class="spectrum-segment" style="background-color: #800000;"></div>
+        <div class="spectrum-segment" style="background-color: #FF0000;"></div>
+        <div class="spectrum-segment" style="background-color: #808000;"></div>
+        <div class="spectrum-segment" style="background-color: #FFFF00;"></div>
+        <div class="spectrum-segment" style="background-color: #008000;"></div>
+        <div class="spectrum-segment" style="background-color: #00FF00;"></div>
+        <div class="spectrum-segment" style="background-color: #008080;"></div>
+        <div class="spectrum-segment" style="background-color: #00FFFF;"></div>
+        <div class="spectrum-segment" style="background-color: #000080;"></div>
+        <div class="spectrum-segment" style="background-color: #0000FF;"></div>
+        <div class="spectrum-segment" style="background-color: #800080;"></div>
+        <div class="spectrum-segment" style="background-color: #FF00FF;"></div>
+    </div>
+
+    <!-- Main content container with glassmorphism styling -->
+    <div class="main-container">
+        <!-- Primary page header section -->
+        <div class="page-header">
+            <h1>⚡ BNC-Switch Control</h1>
+            <p>Web Interface &amp; SCPI Control</p>
+        </div>
+
+	<div class="status-bar"></div>
+        
+        <!-- Container for all GPIO pin control cards -->
+        <div id="gpio-controls">
+            <!-- GPIO control cards will be dynamically generated here -->
+            <!-- Each card represents one GPIO pin with its controls -->
+            {% for pin_num, pin_name in pins.items() %}
+            <div class="content-card">
+                <div class="card-header">
+                    <!-- Display pin number and name -->
+                    <div class="primary-info">Pin {{ pin_num }} ({{ pin_name }})</div>
+                    <!-- LED-style status indicator showing current pin state -->
+                    <div class="status-indicator" id="status-{{ pin_num }}"></div>
+                </div>
+                <!-- Button controls for pin operations -->
+                <div class="button-controls">
+                    <!-- Green button for turning pin ON -->
+                    <button class="button-green" onclick="writeGPIO({{ pin_num }}, 1)">ON</button>
+                    <!-- Red button for turning pin OFF -->
+                    <button class="button-red" onclick="writeGPIO({{ pin_num }}, 0)">OFF</button>
+                    <!-- Yellow button for toggling pin state -->
+                    <button class="button-yellow" onclick="toggleGPIO({{ pin_num }})">Toggle</button>
+                    <!-- Blue button for reading current pin state -->
+                    <button class="button-blue" onclick="readGPIO({{ pin_num }})">Read</button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Status and message display card -->
+        <div class="content-card">
+            <div class="card-header" style="margin-bottom: 0px;">
+                <!-- Status panel header with refresh button -->
+                <div class="primary-info">📊 Status &amp; Messages</div>
+                <button class="button-blue" onclick="updateStatus()" style="padding: 6px 13px; margin-top: 0px;">Refresh Status</button>
+            </div>
+            <!-- Container for dynamic status messages -->
+            <div id="messages"></div>
+        </div>
+
+        <!-- SCPI server information and help card -->
+        <div class="content-card">
+            <div class="card-header" style="margin-bottom: 0px;">
+                <!-- SCPI server information header -->
+                <div class="primary-info">📡 SCPI Server:</div>
+                <!-- Orange help button linking to documentation -->
+                <button class="button-orange" onclick="location.href='/help'">Help</button>
+            </div>
+            <!-- SCPI connection instructions -->
+            <div style="color:#FFFFFF">
+                Connect via telnet to <code>{{ ipa }}:5025</code> for computer (e.g. Python) control
+            </div>
+        </div>
+
+        <!-- Footer with copyright and system information -->
+        <div class="page-header">
+            <p>
+                <!-- Copyleft symbol (rotated copyright) -->
+                <span class="copyleft">&copy;</span> 2025 Ilja Gerhardt | 
+                IP-Address: {{ ipa }} | 
+                MAC-Address: {{ mac }} | 
+                Last Update: <span id="last-update">Never</span>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * Display a message to the user with optional error styling
+         * @param {string} message - The message to display
+         * @param {boolean} isError - Whether this is an error message
+         */
+        function showMessage(message, isError = false) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = isError ? 'message error' : 'message';
+            messageDiv.textContent = message;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            
+            // Update the last update timestamp
+            const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            document.getElementById('last-update').textContent = 
+                new Date().toLocaleTimeString("en-US", { timeZone: tz, hour12: false});
+
+            // Auto-remove message after 2 seconds
+            setTimeout(() => {
+                messageDiv.remove();
+            }, 2000);
+        }
+
+        /**
+         * Setup a GPIO pin as input or output
+         * @param {number} pin - GPIO pin number
+         * @param {string} direction - 'in' or 'out'
+         */
+        async function setupGPIO(pin, direction) {
+            try {
+                const response = await fetch(`/api/gpio/${pin}/setup`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({direction: direction})
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showMessage(`GPIO ${pin} setup as ${direction}`);
+                } else {
+                    showMessage(data.error, true);
+                }
+            } catch (error) {
+                showMessage(`Error: ${error.message}`, true);
+            }
+        }
+
+        /**
+         * Write a value to a GPIO pin (turn ON or OFF)
+         * @param {number} pin - GPIO pin number
+         * @param {number} value - 0 for LOW/OFF, 1 for HIGH/ON
+         */
+        async function writeGPIO(pin, value) {
+            try {
+                const response = await fetch(`/api/gpio/${pin}/write`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({value: value})
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showMessage(`GPIO ${pin} set to ${value ? 'HIGH' : 'LOW'}`);
+                    updatePinStatus(pin, value);
+                } else {
+                    showMessage(data.error, true);
+                }
+            } catch (error) {
+                showMessage(`Error: ${error.message}`, true);
+            }
+        }
+
+        /**
+         * Read the current value of a GPIO pin
+         * @param {number} pin - GPIO pin number
+         */
+        async function readGPIO(pin) {
+            try {
+                const response = await fetch(`/api/gpio/${pin}/read`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showMessage(`GPIO ${pin} reads: ${data.value ? 'HIGH' : 'LOW'}`);
+                    updatePinStatus(pin, data.value);
+                } else {
+                    showMessage(data.error, true);
+                }
+            } catch (error) {
+                showMessage(`Error: ${error.message}`, true);
+            }
+        }
+
+        /**
+         * Toggle the state of a GPIO pin (flip between ON and OFF)
+         * @param {number} pin - GPIO pin number
+         */
+        async function toggleGPIO(pin) {
+            try {
+                const response = await fetch(`/api/gpio/${pin}/toggle`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showMessage(data.message);
+                    updateStatus();
+                } else {
+                    showMessage(data.error, true);
+                }
+            } catch (error) {
+                showMessage(`Error: ${error.message}`, true);
+            }
+        }
+
+        /**
+         * Update the visual status indicator for a specific pin
+         * @param {number} pin - GPIO pin number
+         * @param {number} value - 0 for inactive, 1 for active
+         */
+        function updatePinStatus(pin, value) {
+            const indicator = document.getElementById(`status-${pin}`);
+            if (indicator) {
+                indicator.className = value ? 'status-indicator active' : 'status-indicator';
+            }
+        }
+
+        /**
+         * Refresh the status of all GPIO pins
+         */
+        async function updateStatus() {
+            try {
+                const response = await fetch('/api/gpio/status');
+                const data = await response.json();
+                
+                // Update each pin's status indicator
+                for (const [pin, status] of Object.entries(data)) {
+                    updatePinStatus(pin, status.value);
+                }
+                
+                showMessage('Status updated');
+            } catch (error) {
+                showMessage(`Error updating status: ${error.message}`, true);
+            }
+        }
+
+        // Auto-refresh status every 60 seconds
+        setInterval(updateStatus, 60000);
+        
+        // Initial status update when page loads
+        updateStatus();
+
+        // Add interactive effects to spectrum bar segments
+        document.querySelectorAll('.spectrum-segment').forEach((segment, index) => {
+            segment.addEventListener('click', () => {
+                // Add pulse animation when clicked
+                segment.style.animation = 'pulse 0.5s ease';
+                setTimeout(() => {
+                    segment.style.animation = '';
+                }, 500);
+            });
+        });
+    </script>
+</body>
+</html>

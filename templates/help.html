@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LuckFox Pico GPIO Control</title>
+    <link rel="stylesheet" href="/css">
+</head>
+<body>
+    <div class="brand-identity">light &amp; matter group</div>
+    
+    <div class="spectrum-bar">
+        <div class="spectrum-segment" style="background-color: #800000;"></div>
+        <div class="spectrum-segment" style="background-color: #FF0000;"></div>
+        <div class="spectrum-segment" style="background-color: #808000;"></div>
+        <div class="spectrum-segment" style="background-color: #FFFF00;"></div>
+        <div class="spectrum-segment" style="background-color: #008000;"></div>
+        <div class="spectrum-segment" style="background-color: #00FF00;"></div>
+        <div class="spectrum-segment" style="background-color: #008080;"></div>
+        <div class="spectrum-segment" style="background-color: #00FFFF;"></div>
+        <div class="spectrum-segment" style="background-color: #000080;"></div>
+        <div class="spectrum-segment" style="background-color: #0000FF;"></div>
+        <div class="spectrum-segment" style="background-color: #800080;"></div>
+        <div class="spectrum-segment" style="background-color: #FF00FF;"></div>
+    </div>
+
+    <div class="main-container">
+        <div class="page-header">
+            <h1>⚡ BNC-Switch Control</h1>
+            <p>Help Page &amp; Command Reference</p>
+        </div>
+
+        <div class="status-bar"></div>
+        
+        <div class="content-card">
+            <div class="card-header" style="margin-bottom: 0px;">
+            <div class="primary-info">SCPI Command Set:</div>
+            <button onclick="location.href='/'" class="button-orange">Back</button>
+            </div>
+	    <p>&nbsp;<p>
+            <div style="color:#FFFFFF">Connect via telnet to <code>{{ ipa }}:5025</code> for computer (e.g. Python) control<p>
+	    <p>&nbsp;<p>
+                <code>*IDN?</code>: Ask the device for its identity<br>
+                <code>*RST</code>: Reset the device<br>
+                <code>SYST:ERR?</code>: check the error status<br>
+                <code>GPIO:LIST?</code>: list which GPIOs are listed in the source code<br>
+                <code>GPIO:SETUP</code>: setup the different channels<br>
+                <code>GPIO:WRITE</code>: write a channel<br>
+                <code>GPIO:READ?</code>: read a channel<br>
+                <code>GPIO:TOGGLE</code>: toggle a channel<br>
+                <code>GPIO:STATUS?</code>: check the status of the different channels<br>
+            </div>
+        </div>
+
+        <div class="content-card">
+            <div class="card-header" style="margin-bottom: 0px;">
+            <div class="primary-info">Example Programm:</div>
+	    <p>&nbsp;<p>
+            </div>
+	    <p>&nbsp;<p>
+               <div style="color:#FFFFFF">
+               <pre>
+#!/usr/bin/env python3
+
+import socket
+import time
+
+TCP_IP = '{{ipa}}'
+TCP_PORT = 5025
+BUFFER_SIZE = 1024
+
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.connect((TCP_IP, TCP_PORT))
+s.send(b"*IDN?\r\n")
+data = s.recv(BUFFER_SIZE)
+print("received data:", data)
+s.send(b"GPIO:WRITE 54,1\r\n")
+time.sleep(1)
+s.send(b"GPIO:WRITE 55,1\r\n")
+time.sleep(1)
+s.send(b"GPIO:WRITE 54,0\r\n")
+time.sleep(1)
+s.send(b"GPIO:WRITE 55,0\r\n")
+time.sleep(1)
+s.send(b"GPIO:TOGGLE 54\r\n")
+time.sleep(1)
+s.send(b"GPIO:TOGGLE 55\r\n")
+time.sleep(1)
+s.close()
+</pre>
+            </div>
+        </div>
+
+        <div class="content-card">
+            <div class="card-header" style="margin-bottom: 0px;">
+            <div class="primary-info">LuckFox Pinout:</div>
+            </div>
+	    <p>&nbsp;<p>
+            <img src="/pinout">
+        </div>
+
+        <div class="content-card">
+            <div class="card-header" style="margin-bottom: 0px;">
+            <div class="primary-info">Pinout calculation:</div>
+            <button onclick="location.href='/'" class="button-orange">Back</button>
+            </div>
+	    <p>&nbsp;<p>
+	    <div style="color:#FFFFFF">
+	    Add more pins as needed - refer to LuckFox pinout diagram<p>
+	    <strong>Pin calculation:</strong> bank * 32 + (group * 8 + X)<p>
+	    <strong>Example:</strong> GPIO1_C7 = 1 * 32 + (2 * 8 + 7) = 55<p>
+	    <p>&nbsp;<p>
+	    This all needs to be edited in the original file: <code>gpio_server.py</code> on the luckfox-device. You can login there with <code>ssh pico@{{ ipa }}</code>. The <code>gpio_server.py</code> file is in the users home-directory.<p>
+	    <p>&nbsp;<p>
+	    When you want to run the file on the platform you have to first kill the running webinterface. You can find the process with <code>ps ax | grep gpio</code>. Then you kill the process by using <code>sudo kill [process id]</code>. After this you can launch the command <code>sudo /usr/bin/python3 /home/pico/gpio_server.py</code>.
+	    
+	    </div>
+        </div>
+
+        <div class="page-header">
+		<p><span class="copyleft">&copy;</span> 2025 Ilja Gerhardt | IP-Address: {{ ipa }} | MAC-Address: {{ mac }}</p>
+        </div>
+    </div>
+</body>
+</html>
+

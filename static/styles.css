@@ -1,0 +1,485 @@
+/* ========================================
+   GLOBAL RESET & BASE STYLES
+======================================== */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Calibri', 'Inter', 'Orbitron', 'Gill Sans MT', sans-serif;
+    background-color: #000080;
+    color: #00FFFF;
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+    padding-bottom: 20px;
+}
+
+/* ========================================
+   ANIMATED BACKGROUND GRID
+======================================== */
+
+/* Creates a moving grid pattern background */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: 
+        linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
+    background-size: 50px 50px;
+    animation: gridMove 30s linear infinite;
+    z-index: -1;
+}
+
+@keyframes gridMove {
+    0% { transform: translate(0, 0); }
+    100% { transform: translate(50px, 50px); }
+}
+
+/* ========================================
+   HEADER BRANDING & IDENTITY
+======================================== */
+
+/* Copyright symbol rotation for "copyleft" effect */
+.copyleft {
+    display: inline-block;
+    transform: rotate(180deg);
+}
+
+/* Organization branding in top-right corner */
+.brand-identity {
+    position: fixed;
+    top: 20px;
+    right: 30px;
+    font-family: 'Gill Sans MT', sans-serif;
+    font-size: 27px;
+    font-weight: normal;
+    color: #00FFFF;
+    text-shadow: 0 0 10px #00FFFF;
+    z-index: 1000;
+    letter-spacing: 2px;
+}
+
+/* ========================================
+   SPECTRUM BAR AT BOTTOM
+======================================== */
+
+/* Interactive color spectrum bar at page bottom */
+.spectrum-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 20px;
+    display: flex;
+    z-index: 1000;
+}
+
+/* Individual color segments within spectrum bar */
+.spectrum-segment {
+    flex: 1;
+    height: 100%;
+    transition: all 0.3s ease;
+}
+
+/* Hover effect for spectrum segments */
+.spectrum-segment:hover {
+    transform: scaleY(1.5);
+    box-shadow: 0 -5px 15px rgba(255, 255, 255, 0.3);
+}
+
+/* ========================================
+   MAIN CONTAINER & LAYOUT
+======================================== */
+
+/* Primary content container with glassmorphism effect */
+.main-container {
+    max-width: 1200px;
+    margin: 64px auto 0;
+    padding: 0px;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(15px);
+    border-radius: 20px;
+    border: 2px solid #9966CC;
+    box-shadow: 
+        0 0 30px rgba(153, 102, 204, 0.3),
+        inset 0 0 30px rgba(153, 102, 204, 0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+/* ========================================
+   PAGE HEADER SECTION
+======================================== */
+
+/* Main page header with gradient background */
+.page-header {
+    background: linear-gradient(45deg, rgba(5, 3, 93, 0.8), rgba(53, 10, 66, 0.8));
+    color: white;
+    padding: 10px;
+    text-align: center;
+    position: relative;
+    backdrop-filter: blur(10px);
+}
+
+/* Primary heading styling */
+.page-header h1 {
+    text-align: center;
+    font-size: 3em;
+    margin-bottom: 10px;
+    font-weight: 900;
+    color: #00FFFF;
+    text-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+}
+
+/* ========================================
+   CONTENT CARDS
+======================================== */
+
+/* Individual content cards with hover effects */
+.content-card {
+    background: linear-gradient(135deg, rgba(0, 0, 128, 0.3), rgba(0, 0, 0, 0.5));
+    margin: 20px 30px;
+    padding: 25px;
+    border-radius: 20px;
+    border: 1px solid rgba(153, 102, 204, 0.4);
+    box-shadow: 
+        0 10px 30px rgba(0, 0, 0, 0.5),
+        0 0 20px rgba(153, 102, 204, 0.15);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Animated shimmer effect on cards */
+.content-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(153, 102, 204, 0.2), transparent);
+    transition: left 0.6s ease;
+}
+
+/* Trigger shimmer on hover */
+.content-card:hover::before {
+    left: 100%;
+}
+
+/* Card hover state effects */
+.content-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 
+        0 15px 40px rgba(0, 0, 0, 0.7),
+        0 0 30px rgba(153, 102, 204, 0.3);
+}
+
+/* ========================================
+   CARD HEADERS
+======================================== */
+
+/* Header section within each card */
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+/* Primary information display in card headers */
+.primary-info {
+    font-size: 1.4em;
+    font-weight: bold;
+    color: #00FFFF;
+    text-shadow: 0 0 10px #00FFFF;
+}
+
+/* ========================================
+   STATUS INDICATORS
+======================================== */
+
+/* LED-style status indicator with pulsing animation */
+.status-indicator {
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #FF0000, #800000);
+    transition: all 0.4s ease;
+    box-shadow: 0 0 15px #FF0000;
+    animation: pulse 2s infinite;
+}
+
+/* Active/ON state for status indicators */
+.status-indicator.active {
+    background: radial-gradient(circle, #00FF00, #008000);
+    box-shadow: 0 0 20px #00FF00;
+}
+
+/* Pulsing animation for status indicators */
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+        .status-bar {
+            background: rgba(52, 152, 219, 0.3);
+            color: white;
+            padding: 10px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+/* ========================================
+   BUTTON CONTROLS & STYLING
+======================================== */
+
+/* Control button container */
+.button-controls {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+/* Base button styling with glassmorphism and glow effects */
+button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    font-family: 'Orbitron', sans-serif;
+    transition: all 0.3s ease;
+    color: #FFFFFF;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    position: relative;
+    overflow: hidden;
+    font-size: 20px;
+}
+
+/* Animated shimmer effect for buttons */
+button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.5s ease;
+}
+
+/* Trigger shimmer on button hover */
+button:hover::before {
+    left: 100%;
+}
+
+/* Base button hover effects */
+button:hover {
+    transform: translateY(-3px) scale(1.02);
+}
+
+/* Blue-themed buttons (default/read actions) */
+.button-blue {
+    background: rgba(0, 150, 255, 0.9);
+    box-shadow: 
+        0 6px 20px rgba(0, 0, 0, 0.4),
+        0 0 25px rgba(0, 150, 255, 0.4);
+    border: 1px solid rgba(0, 150, 255, 0.6);
+}
+
+.button-blue:hover {
+    box-shadow: 
+        0 10px 30px rgba(0, 0, 0, 0.5),
+        0 0 35px rgba(0, 150, 255, 0.6);
+}
+
+/* Purple-themed buttons (setup/configuration actions) */
+.button-purple {
+    background: rgba(150, 80, 200, 0.9);
+    box-shadow: 
+        0 6px 20px rgba(0, 0, 0, 0.4), 
+        0 0 25px rgba(150, 80, 200, 0.4);
+    border: 1px solid rgba(150, 80, 200, 0.6);
+}
+
+.button-purple:hover {
+    box-shadow: 
+        0 10px 30px rgba(0, 0, 0, 0.5), 
+        0 0 35px rgba(150, 80, 200, 0.6);
+}
+
+/* Green-themed buttons (ON/activate actions) */
+.button-green {
+    background: rgba(0, 200, 150, 0.9);
+    box-shadow: 
+        0 6px 20px rgba(0, 0, 0, 0.4), 
+        0 0 25px rgba(0, 200, 150, 0.4);
+    border: 1px solid rgba(0, 200, 150, 0.6);
+}
+
+.button-green:hover {
+    box-shadow: 
+        0 10px 30px rgba(0, 0, 0, 0.5), 
+        0 0 35px rgba(0, 200, 150, 0.6);
+}
+
+/* Orange-themed buttons (help/information actions) */
+.button-orange {
+    padding: 6px 13px;
+    background: rgba(255, 165, 0, 0.9);
+    box-shadow: 
+        0 6px 20px rgba(0, 0, 0, 0.4), 
+        0 0 25px rgba(255, 165, 0, 0.4);
+    border: 1px solid rgba(255, 165, 0, 0.6);
+}
+
+.button-orange:hover {
+    box-shadow: 
+        0 10px 30px rgba(0, 0, 0, 0.5), 
+        0 0 35px rgba(255, 165, 0, 0.6);
+}
+
+/* Red-themed buttons (OFF/deactivate actions) */
+.button-red {
+    background: rgba(255, 80, 80, 0.9);
+    box-shadow: 
+        0 6px 20px rgba(0, 0, 0, 0.4), 
+        0 0 25px rgba(255, 80, 80, 0.4);
+    border: 1px solid rgba(255, 80, 80, 0.6);
+}
+
+.button-red:hover {
+    box-shadow: 
+        0 10px 30px rgba(0, 0, 0, 0.5), 
+        0 0 35px rgba(255, 80, 80, 0.6);
+}
+
+/* Yellow-themed buttons (toggle/switch actions) */
+.button-yellow {
+    background: rgba(255, 180, 60, 0.9);
+    box-shadow: 
+        0 6px 20px rgba(0, 0, 0, 0.4), 
+        0 0 25px rgba(255, 180, 60, 0.4);
+    border: 1px solid rgba(255, 180, 60, 0.6);
+}
+
+.button-yellow:hover {
+    box-shadow: 
+        0 10px 30px rgba(0, 0, 0, 0.5), 
+        0 0 35px rgba(255, 180, 60, 0.6);
+}
+
+/* ========================================
+   MESSAGE SYSTEM
+======================================== */
+
+/* Message container styling */
+.message {
+    padding: 15px;
+    margin: 15px 0;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(46, 213, 115, 0.2), rgba(0, 255, 255, 0.1));
+    border-left: 4px solid #2ed573;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    animation: slideIn 0.5s ease;
+}
+
+/* Error message styling */
+.message.error {
+    background: linear-gradient(135deg, rgba(255, 71, 87, 0.2), rgba(255, 0, 0, 0.1));
+    border-left-color: #ff4757;
+}
+
+/* Slide-in animation for messages */
+@keyframes slideIn {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+/* ========================================
+   CODE DISPLAY ELEMENTS
+======================================== */
+
+/* Inline code styling with terminal-like appearance */
+code {
+    background: rgba(0, 0, 0, 0.6);
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-family: 'Courier New', monospace;
+    color: #00FF00;
+    border: 1px solid rgba(0, 255, 0, 0.3);
+}
+
+/* Code within information sections */
+.info-section code {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+}
+
+/* ========================================
+   INFORMATION SECTIONS
+======================================== */
+
+/* Information display sections (e.g., SCPI server info) */
+.info-section {
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.8), rgba(0, 0, 128, 0.3));
+    color: white;
+    padding: 15px;
+    margin: 20px 30px;
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(153, 102, 204, 0.4);
+    box-shadow: 0 0 30px rgba(153, 102, 204, 0.2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+/* ========================================
+   RESPONSIVE DESIGN
+======================================== */
+
+/* Mobile and tablet responsive adjustments */
+@media (max-width: 768px) {
+    .main-container {
+        margin: 48px 10px 0;
+        padding: 20px;
+    }
+    
+    .page-header h1 {
+        font-size: 2em;
+    }
+    
+    .brand-identity {
+        font-family: 'Gill Sans MT', sans-serif;
+        font-size: 21px;
+        right: 15px;
+        top: 15px;
+    }
+    
+    .button-controls {
+        gap: 10px;
+    }
+    
+    button {
+        padding: 12px 20px;
+        font-size: 12px;
+    }
+}

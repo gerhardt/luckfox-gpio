@@ -101,22 +101,31 @@ s.close()
 
         <div class="content-card">
             <div class="card-header" style="margin-bottom: 0px;">
-            <div class="primary-info">Pinout calculation:</div>
-            <button onclick="location.href='/'" class="button-orange">Back</button>
+               <div class="primary-info">Pinout calculation:</div>
+               <button onclick="location.href='/'" class="button-orange">Back</button>
             </div>
 	    <p>&nbsp;<p>
 	    <div style="color:#FFFFFF">
-	    Add more pins as needed - refer to LuckFox pinout diagram<p>
-	    <strong>Pin calculation:</strong> bank * 32 + (group * 8 + X)<p>
-	    <strong>Example:</strong> GPIO1_C7 = 1 * 32 + (2 * 8 + 7) = 55<p>
-	    <p>&nbsp;<p>
-	    This all needs to be edited in the original file: <code>gpio_server.py</code> on the luckfox-device. You can login there with <code>ssh pico@{{ ipa }}</code>. The <code>gpio_server.py</code> file is in the users home-directory.<p>
-	    <p>&nbsp;<p>
-	    When you want to run the file on the platform you have to first kill the running webinterface. You can find the process with <code>ps ax | grep gpio</code>. Then you kill the process by using <code>sudo kill [process id]</code>. After this you can launch the command <code>sudo /usr/bin/python3 /home/pico/gpio_server.py</code>.
-	    
+	       Add more pins as needed - refer to LuckFox pinout diagram<p>
+	       <strong>Pin calculation:</strong> bank * 32 + (group * 8 + X)<p>
+	       <strong>Example:</strong> GPIO1_C7 = 1 * 32 + (2 * 8 + 7) = 55<p>
+	       <p>&nbsp;<p>
+	       This all needs to be edited in the original file: <code>gpio_server.py</code> on the luckfox-device. You can login there with <code>ssh pico@{{ ipa }}</code>. The <code>gpio_server.py</code> file is in the users home-directory.<p>
+	       <p>&nbsp;<p>
+	       When you want to run the file on the platform you have to first kill the running webinterface. You can find the process with <code>ps ax | grep gpio</code>. Then you kill the process by using <code>sudo kill [process id]</code>. After this you can launch the command <code>sudo /usr/bin/python3 /home/pico/gpio_server.py</code>.
 	    </div>
         </div>
 
+        <div class="content-card">
+            <div class="card-header" style="margin-bottom: 0px;">
+               <div class="primary-info">Source code availability:</div>
+            </div>
+	    <p>&nbsp;<p>
+	    <div style="color:#FFFFFF">
+	       You can find the source code of all this at <a href="https://github.com/gerhardt/luckfox-gpio/">GitHub</a>
+	    </div>
+        </div>
+	    
         <div class="page-header">
 		<p><span class="copyleft">&copy;</span> 2025 Ilja Gerhardt | IP-Address: {{ ipa }} | MAC-Address: {{ mac }}</p>
         </div>

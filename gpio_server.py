@@ -396,6 +396,11 @@ def pinout():
     """Image interface"""
     return current_app.send_static_file("luckfox_pinout.jpg")
 
+@app.route('/favicon.ico')
+def favicon():
+    """Favicon interface"""
+    return current_app.send_static_file("favicon.ico")
+
 @app.route('/css')
 def css():
     """CSS interface"""

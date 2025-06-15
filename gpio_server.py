@@ -2,6 +2,9 @@
 """
 GPIO Web Control Server with SCPI Interface for LuckFox Pico Max
 Provides both web interface and SCPI command interface for GPIO control
+nicely branded with the light & matter group logo
+(copyleft, 2025) - Ilja Gerhardt
+https://www.fkp.uni-hannover.de/en/research-groups/translate-to-english-light-matter-ilja-gerhardt
 """
 
 from flask import Flask, render_template, request, jsonify, current_app

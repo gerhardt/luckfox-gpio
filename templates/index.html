@@ -5,6 +5,61 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LuckFox Pico GPIO Control</title>
     <link rel="stylesheet" href="/css">
+    <style>
+        /* ── compact pin card layout ── */
+        .pin-control-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            margin-top: 4px;
+        }
+        .pin-divider {
+            width: 1px;
+            height: 28px;
+            background: rgba(255,255,255,0.15);
+            margin: 0 4px;
+            flex-shrink: 0;
+        }
+        .pin-param-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 5px;
+            margin-top: 8px;
+            padding-top: 7px;
+            border-top: 1px solid rgba(255,255,255,0.07);
+        }
+        .pin-param-label {
+            color: #888;
+            font-size: 0.78em;
+            letter-spacing: 0.03em;
+            white-space: nowrap;
+        }
+        .pin-param-input {
+            width: 62px;
+            padding: 3px 6px;
+            border-radius: 4px;
+            border: 1px solid rgba(255,255,255,0.18);
+            background: rgba(0,0,0,0.3);
+            color: #e0e0e0;
+            font-size: 0.85em;
+            text-align: right;
+        }
+        .pin-param-input:focus {
+            outline: none;
+            border-color: rgba(255,165,0,0.6);
+        }
+        .pin-param-unit {
+            color: #666;
+            font-size: 0.78em;
+        }
+        /* tighten button padding in cards */
+        .pin-control-row button {
+            padding: 5px 11px;
+            font-size: 0.88em;
+        }
+    </style>
 </head>
 <body>
     <!-- Organization branding displayed in top-right corner -->
@@ -43,21 +98,27 @@
             {% for pin_num, pin_name in pins.items() %}
             <div class="content-card">
                 <div class="card-header">
-                    <!-- Display pin number and name -->
-                    <div class="primary-info">Pin {{ pin_num }} ({{ pin_name }})</div>
-                    <!-- LED-style status indicator showing current pin state -->
+                    <div class="primary-info">{{ pin_name }} <span style="color:#888;font-size:0.8em;font-weight:normal">(Pin {{ pin_num }})</span></div>
                     <div class="status-indicator" id="status-{{ pin_num }}"></div>
                 </div>
-                <!-- Button controls for pin operations -->
-                <div class="button-controls">
-                    <!-- Green button for turning pin ON -->
-                    <button class="button-green" onclick="writeGPIO({{ pin_num }}, 1)">ON</button>
-                    <!-- Red button for turning pin OFF -->
-                    <button class="button-red" onclick="writeGPIO({{ pin_num }}, 0)">OFF</button>
-                    <!-- Yellow button for toggling pin state -->
+                <!-- Single compact control row -->
+                <div class="pin-control-row">
+                    <button class="button-green"  onclick="writeGPIO({{ pin_num }}, 1)">ON</button>
+                    <button class="button-red"    onclick="writeGPIO({{ pin_num }}, 0)">OFF</button>
                     <button class="button-yellow" onclick="toggleGPIO({{ pin_num }})">Toggle</button>
-                    <!-- Blue button for reading current pin state -->
-                    <button class="button-blue" onclick="readGPIO({{ pin_num }})">Read</button>
+                    <button class="button-blue"   onclick="readGPIO({{ pin_num }})">Read</button>
+                    <div class="pin-divider"></div>
+                    <button class="button-green"  onclick="timedPulseGPIO({{ pin_num }}, 1)">▶ Pulse ON</button>
+                    <button class="button-red"    onclick="timedPulseGPIO({{ pin_num }}, 0)">▶ Pulse OFF</button>
+                    <button class="button-yellow" onclick="timedToggleGPIO({{ pin_num }})">▶ TimeToggle</button>
+                </div>
+                <!-- Parameter row -->
+                <div class="pin-param-row">
+                    <label class="pin-param-label">duration</label>
+                    <input type="number" id="time-dur-{{ pin_num }}" value="1" min="0.05" step="0.05" class="pin-param-input">
+                    <span class="pin-param-unit">s</span>
+                    <label class="pin-param-label" style="margin-left:18px;">toggle-count</label>
+                    <input type="number" id="tt-count-{{ pin_num }}" value="4" min="1" step="1" class="pin-param-input" style="width:52px;">
                 </div>
             </div>
             {% endfor %}
@@ -245,6 +306,74 @@
                 showMessage('Status updated');
             } catch (error) {
                 showMessage(`Error updating status: ${error.message}`, true);
+            }
+        }
+
+        /**
+         * Set a GPIO pin to a value for a duration, then revert to its previous state
+         * @param {number} pin - GPIO pin number
+         * @param {number} value - 1 for HIGH/ON, 0 for LOW/OFF
+         */
+        async function timedPulseGPIO(pin, value) {
+            const durInput = document.getElementById(`time-dur-${pin}`);
+            const duration = parseFloat(durInput ? durInput.value : 1);
+            if (isNaN(duration) || duration <= 0) {
+                showMessage('Duration must be a positive number', true);
+                return;
+            }
+            try {
+                const response = await fetch(`/api/gpio/${pin}/time`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({value: value, duration: duration})
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    showMessage(data.message);
+                    updatePinStatus(pin, value);
+                    // Refresh status after pulse completes
+                    setTimeout(updateStatus, Math.ceil(duration * 1000) + 200);
+                } else {
+                    showMessage(data.error, true);
+                }
+            } catch (error) {
+                showMessage(`Error: ${error.message}`, true);
+            }
+        }
+
+        /**
+         * Toggle a GPIO pin a given number of times with a fixed interval
+         * @param {number} pin - GPIO pin number
+         */
+        async function timedToggleGPIO(pin) {
+            const countInput = document.getElementById(`tt-count-${pin}`);
+            const durInput   = document.getElementById(`time-dur-${pin}`);
+            const count    = parseInt(countInput ? countInput.value : 4);
+            const duration = parseFloat(durInput  ? durInput.value  : 0.5);
+            if (isNaN(count) || count <= 0) {
+                showMessage('Toggle count must be a positive integer', true);
+                return;
+            }
+            if (isNaN(duration) || duration <= 0) {
+                showMessage('Toggle interval must be a positive number', true);
+                return;
+            }
+            try {
+                const response = await fetch(`/api/gpio/${pin}/timetoggle`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({duration: duration, count: count})
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    showMessage(data.message);
+                    // Refresh status after sequence completes
+                    setTimeout(updateStatus, Math.ceil(duration * count * 1000) + 300);
+                } else {
+                    showMessage(data.error, true);
+                }
+            } catch (error) {
+                showMessage(`Error: ${error.message}`, true);
             }
         }
 

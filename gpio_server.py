@@ -36,17 +36,76 @@ def get_ip():
 IP_ADDRESS=get_ip()
 MAC_ADDRESS=open('/sys/class/net/eth0/address').readline()
 
-# GPIO Configuration
-AVAILABLE_PINS = {
-    54: "GPIO1_C6",
-    55: "GPIO1_C7", 
-    # Add more pins as needed - refer to LuckFox pinout diagram
-    # Pin calculation: bank * 32 + (group * 8 + X)
-    # Example: GPIO1_C7 = 1 * 32 + (2 * 8 + 7) = 55
-}
+# GPIO Configuration — loaded from pins.csv in the same directory as this script
+PINS_CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'pins.csv')
+
+_DEFAULT_PINS_CSV = "54,GPIO1_C6\n55,GPIO1_C7\n"
+
+def load_pins_config():
+    """Load {pin_num: label} from pins.csv, falling back to defaults."""
+    try:
+        with open(PINS_CONFIG_FILE, 'r') as f:
+            content = f.read()
+    except FileNotFoundError:
+        content = _DEFAULT_PINS_CSV
+    except Exception as e:
+        logging.error(f"Error reading pins config: {e}")
+        content = _DEFAULT_PINS_CSV
+    return _parse_pins_csv(content)
+
+def _parse_pins_csv(content):
+    pins = {}
+    for line in content.splitlines():
+        line = line.strip()
+        if not line or line.startswith('#'):
+            continue
+        parts = line.split(',', 1)
+        if len(parts) == 2:
+            try:
+                pins[int(parts[0].strip())] = parts[1].strip()
+            except ValueError:
+                pass
+    return pins
+
+def get_pins_config_text():
+    try:
+        with open(PINS_CONFIG_FILE, 'r') as f:
+            return f.read()
+    except FileNotFoundError:
+        return _DEFAULT_PINS_CSV
+    except Exception as e:
+        logging.error(f"Error reading pins config: {e}")
+        return _DEFAULT_PINS_CSV
+
+def save_pins_config(content):
+    """Validate, write pins.csv, and reload AVAILABLE_PINS in place."""
+    global AVAILABLE_PINS
+    new_pins = _parse_pins_csv(content)
+    if not new_pins:
+        raise ValueError("No valid pin entries found")
+    with open(PINS_CONFIG_FILE, 'w') as f:
+        f.write(content)
+    removed = set(AVAILABLE_PINS.keys()) - set(new_pins.keys())
+    added = set(new_pins.keys()) - set(AVAILABLE_PINS.keys())
+    for pin in removed:
+        cancel_timed_op(pin)
+        if pin in active_gpios:
+            try:
+                active_gpios[pin].close()
+            except Exception:
+                pass
+            del active_gpios[pin]
+    AVAILABLE_PINS = new_pins
+    for pin in added:
+        setup_gpio(pin, 'out')
+
+AVAILABLE_PINS = load_pins_config()
 
 # Active GPIO instances
 active_gpios = {}
+
+# Tracks running timed operations per pin (threading.Event for cancellation)
+active_timed_ops = {}
 
 # SCPI Server Configuration
 SCPI_PORT = 5025
@@ -76,6 +135,66 @@ def setup_gpio(pin_num, direction="out"):
         logging.error(f"Error setting up GPIO {pin_num}: {e}")
         return False
 
+def cancel_timed_op(pin_num):
+    """Cancel any running timed operation on a pin"""
+    if pin_num in active_timed_ops:
+        active_timed_ops[pin_num].set()  # signal the thread to stop
+        del active_timed_ops[pin_num]
+
+def run_timed_pulse(pin_num, target_value, duration):
+    """
+    Set pin to target_value for duration seconds, then restore previous state.
+    Runs in a daemon thread. Cancellable via active_timed_ops event.
+    """
+    cancel_timed_op(pin_num)
+    stop_event = threading.Event()
+    active_timed_ops[pin_num] = stop_event
+
+    def _pulse():
+        try:
+            if pin_num not in active_gpios:
+                return
+            original_value = active_gpios[pin_num].read()
+            active_gpios[pin_num].write(bool(target_value))
+            stop_event.wait(timeout=duration)
+            if pin_num in active_gpios:
+                active_gpios[pin_num].write(original_value)
+        except Exception as e:
+            logging.error(f"Timed pulse error on GPIO {pin_num}: {e}")
+        finally:
+            active_timed_ops.pop(pin_num, None)
+
+    t = threading.Thread(target=_pulse, daemon=True)
+    t.start()
+
+def run_timed_toggle(pin_num, duration, count):
+    """
+    Toggle pin <count> times with <duration> seconds between each toggle.
+    Runs in a daemon thread. Cancellable via active_timed_ops event.
+    """
+    cancel_timed_op(pin_num)
+    stop_event = threading.Event()
+    active_timed_ops[pin_num] = stop_event
+
+    def _toggle():
+        try:
+            if pin_num not in active_gpios:
+                return
+            for _ in range(count):
+                if stop_event.is_set():
+                    break
+                current = active_gpios[pin_num].read()
+                active_gpios[pin_num].write(not current)
+                if stop_event.wait(timeout=duration):
+                    break
+        except Exception as e:
+            logging.error(f"Timed toggle error on GPIO {pin_num}: {e}")
+        finally:
+            active_timed_ops.pop(pin_num, None)
+
+    t = threading.Thread(target=_toggle, daemon=True)
+    t.start()
+
 # SCPI Command Handler
 class SCPICommandHandler:
     def __init__(self):
@@ -89,6 +208,8 @@ class SCPICommandHandler:
             'GPIO:READ?': self.read_gpio_scpi,
             'GPIO:TOGGLE': self.toggle_gpio_scpi,
             'GPIO:STATUS?': self.get_gpio_status,
+            'GPIO:TIME': self.time_gpio_scpi,
+            'GPIO:TIMETOGGLE': self.timetoggle_gpio_scpi,
         }
         self.last_error = "0,\"No error\""
     
@@ -99,6 +220,8 @@ class SCPICommandHandler:
     def reset(self, params=None):
         """*RST - Reset all GPIOs"""
         try:
+            for pin_num in list(active_timed_ops.keys()):
+                cancel_timed_op(pin_num)
             cleanup_gpios()
             self.last_error = "0,\"No error\""
             return "OK"
@@ -269,6 +392,82 @@ class SCPICommandHandler:
             self.last_error = f"13,\"Status error: {str(e)}\""
             return "ERROR"
     
+    def time_gpio_scpi(self, params):
+        """GPIO:TIME <pin>,<value>,<seconds> - Set pin to value for duration, then revert"""
+        try:
+            if not params or len(params.split(',')) != 3:
+                self.last_error = "2,\"Invalid parameters. Use: GPIO:TIME <pin>,<value>,<seconds>\""
+                return "ERROR"
+
+            pin_str, value_str, dur_str = params.split(',')
+            pin = int(pin_str.strip())
+            value_str = value_str.strip().upper()
+            duration = float(dur_str.strip())
+
+            if pin not in AVAILABLE_PINS:
+                self.last_error = f"3,\"Invalid pin {pin}\""
+                return "ERROR"
+            if pin not in active_gpios:
+                self.last_error = f"8,\"GPIO {pin} not initialized\""
+                return "ERROR"
+            if value_str in ['1', 'ON', 'HIGH', 'TRUE']:
+                value = True
+            elif value_str in ['0', 'OFF', 'LOW', 'FALSE']:
+                value = False
+            else:
+                self.last_error = "9,\"Invalid value. Use: 0/1, ON/OFF, HIGH/LOW\""
+                return "ERROR"
+            if duration <= 0:
+                self.last_error = "14,\"Duration must be positive\""
+                return "ERROR"
+
+            run_timed_pulse(pin, value, duration)
+            self.last_error = "0,\"No error\""
+            return "OK"
+
+        except ValueError:
+            self.last_error = "6,\"Invalid pin number or duration\""
+            return "ERROR"
+        except Exception as e:
+            self.last_error = f"15,\"Time error: {str(e)}\""
+            return "ERROR"
+
+    def timetoggle_gpio_scpi(self, params):
+        """GPIO:TIMETOGGLE <pin>,<seconds>,<count> - Toggle pin <count> times with <seconds> interval"""
+        try:
+            if not params or len(params.split(',')) != 3:
+                self.last_error = "2,\"Invalid parameters. Use: GPIO:TIMETOGGLE <pin>,<seconds>,<count>\""
+                return "ERROR"
+
+            pin_str, dur_str, count_str = params.split(',')
+            pin = int(pin_str.strip())
+            duration = float(dur_str.strip())
+            count = int(count_str.strip())
+
+            if pin not in AVAILABLE_PINS:
+                self.last_error = f"3,\"Invalid pin {pin}\""
+                return "ERROR"
+            if pin not in active_gpios:
+                self.last_error = f"8,\"GPIO {pin} not initialized\""
+                return "ERROR"
+            if duration <= 0:
+                self.last_error = "14,\"Duration must be positive\""
+                return "ERROR"
+            if count <= 0:
+                self.last_error = "16,\"Count must be positive\""
+                return "ERROR"
+
+            run_timed_toggle(pin, duration, count)
+            self.last_error = "0,\"No error\""
+            return "OK"
+
+        except ValueError:
+            self.last_error = "6,\"Invalid pin number, duration or count\""
+            return "ERROR"
+        except Exception as e:
+            self.last_error = f"17,\"TimeToggle error: {str(e)}\""
+            return "ERROR"
+
     def process_command(self, command):
         """Process an SCPI command"""
         command = command.strip()
@@ -497,8 +696,74 @@ def gpio_status():
     
     return jsonify(status)
 
+@app.route('/api/gpio/<int:pin>/time', methods=['POST'])
+def time_pin(pin):
+    """Set a GPIO pin to a value for a duration, then revert"""
+    if pin not in AVAILABLE_PINS:
+        return jsonify({"error": "Invalid pin number"}), 400
+    if pin not in active_gpios:
+        return jsonify({"error": "GPIO not initialized. Setup pin first."}), 400
+
+    try:
+        data = request.json
+        value = data.get('value')
+        duration = float(data.get('duration', 0))
+        if value not in [0, 1, True, False]:
+            return jsonify({"error": "Value must be 0 or 1"}), 400
+        if duration <= 0:
+            return jsonify({"error": "Duration must be a positive number"}), 400
+
+        run_timed_pulse(pin, bool(value), duration)
+        return jsonify({"status": "success",
+                        "message": f"GPIO {pin} set to {int(value)} for {duration}s then reverted"})
+    except (TypeError, ValueError) as e:
+        return jsonify({"error": f"Invalid parameters: {str(e)}"}), 400
+    except Exception as e:
+        return jsonify({"error": f"Failed timed pulse: {str(e)}"}), 500
+
+@app.route('/api/gpio/<int:pin>/timetoggle', methods=['POST'])
+def timetoggle_pin(pin):
+    """Toggle a GPIO pin <count> times with <duration> seconds between each toggle"""
+    if pin not in AVAILABLE_PINS:
+        return jsonify({"error": "Invalid pin number"}), 400
+    if pin not in active_gpios:
+        return jsonify({"error": "GPIO not initialized. Setup pin first."}), 400
+
+    try:
+        data = request.json
+        duration = float(data.get('duration', 0))
+        count = int(data.get('count', 0))
+        if duration <= 0:
+            return jsonify({"error": "Duration must be a positive number"}), 400
+        if count <= 0:
+            return jsonify({"error": "Count must be a positive integer"}), 400
+
+        run_timed_toggle(pin, duration, count)
+        end_state = "original" if count % 2 == 0 else "toggled"
+        return jsonify({"status": "success",
+                        "message": f"GPIO {pin} toggling {count}x every {duration}s — ends in {end_state} state"})
+    except (TypeError, ValueError) as e:
+        return jsonify({"error": f"Invalid parameters: {str(e)}"}), 400
+    except Exception as e:
+        return jsonify({"error": f"Failed timed toggle: {str(e)}"}), 500
+
+@app.route('/api/pins/config', methods=['GET'])
+def get_pins_config_route():
+    return jsonify({"content": get_pins_config_text()})
+
+@app.route('/api/pins/config', methods=['POST'])
+def post_pins_config_route():
+    try:
+        content = request.json.get('content', '')
+        save_pins_config(content)
+        return jsonify({"status": "success"})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        logging.error(f"Error saving pins config: {e}")
+        return jsonify({"error": str(e)}), 500
+
 # Create templates directory and file
-import tempfile
 import atexit
 
 templates_dir = "templates"

@@ -8,7 +8,7 @@
 </head>
 <body>
     <div class="brand-identity">light &amp; matter group</div>
-    
+
     <div class="spectrum-bar">
         <div class="spectrum-segment" style="background-color: #800000;"></div>
         <div class="spectrum-segment" style="background-color: #FF0000;"></div>
@@ -31,7 +31,7 @@
         </div>
 
         <div class="status-bar"></div>
-        
+
         <div class="content-card">
             <div class="card-header" style="margin-bottom: 0px;">
             <div class="primary-info">SCPI Command Set:</div>
@@ -49,7 +49,24 @@
                 <code>GPIO:READ?</code>: read a channel<br>
                 <code>GPIO:TOGGLE</code>: toggle a channel<br>
                 <code>GPIO:STATUS?</code>: check the status of the different channels<br>
+                <code>GPIO:TIME &lt;pin&gt;,&lt;value&gt;,&lt;seconds&gt;</code>: set pin to value (0/1) for &lt;seconds&gt; seconds, then revert to the previous state — e.g. <code>GPIO:TIME 54,1,2.5</code> pulses pin 54 HIGH for 2.5 s<br>
+                <code>GPIO:TIMETOGGLE &lt;pin&gt;,&lt;seconds&gt;,&lt;count&gt;</code>: toggle pin &lt;count&gt; times with &lt;seconds&gt; between each toggle — with an even count the pin returns to its original state, with an odd count it ends in the toggled state — e.g. <code>GPIO:TIMETOGGLE 54,0.5,4</code>
             </div>
+        </div>
+
+        <div class="content-card">
+            <div class="card-header" style="margin-bottom: 0px;">
+                <div class="primary-info">Pin Configuration:</div>
+                <button class="button-green" onclick="savePins()">Save</button>
+            </div>
+            <p>&nbsp;</p>
+            <div style="color:#FFFFFF">
+                One pin per line: <code>pin_number,label</code> — e.g. <code>54,shutter</code><br>
+                Lines starting with <code>#</code> are ignored. Changes take effect immediately.
+            </div>
+            <p>&nbsp;</p>
+            <textarea id="pins-csv" rows="8" style="width:100%;box-sizing:border-box;background:rgba(0,0,0,0.4);color:#e0e0e0;border:1px solid rgba(255,255,255,0.2);border-radius:6px;padding:8px;font-family:monospace;font-size:0.9em;resize:vertical;"></textarea>
+            <div id="pins-msg" style="margin-top:6px;font-size:0.88em;"></div>
         </div>
 
         <div class="content-card">
@@ -86,6 +103,12 @@ s.send(b"GPIO:TOGGLE 54\r\n")
 time.sleep(1)
 s.send(b"GPIO:TOGGLE 55\r\n")
 time.sleep(1)
+# Pulse pin 54 HIGH for 2 seconds, then revert automatically
+s.send(b"GPIO:TIME 54,1,2.0\r\n")
+time.sleep(3)
+# Toggle pin 55 four times (every 0.5 s) — ends in original state (even count)
+s.send(b"GPIO:TIMETOGGLE 55,0.5,4\r\n")
+time.sleep(3)
 s.close()
 </pre>
             </div>
@@ -126,11 +149,47 @@ s.close()
 	       You can find the source code of all this at GitHub.
 	    </div>
         </div>
-	    
+
         <div class="page-header">
 		<p><span class="copyleft">&copy;</span> 2025 Ilja Gerhardt | IP-Address: {{ ipa }} | MAC-Address: {{ mac }}</p>
         </div>
     </div>
+    <script>
+        async function loadPins() {
+            try {
+                const r = await fetch('/api/pins/config');
+                const d = await r.json();
+                document.getElementById('pins-csv').value = d.content;
+            } catch (e) {
+                document.getElementById('pins-msg').textContent = 'Error loading config: ' + e.message;
+                document.getElementById('pins-msg').style.color = '#f66';
+            }
+        }
+
+        async function savePins() {
+            const content = document.getElementById('pins-csv').value;
+            const msg = document.getElementById('pins-msg');
+            try {
+                const r = await fetch('/api/pins/config', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({content: content})
+                });
+                const d = await r.json();
+                if (r.ok) {
+                    msg.textContent = 'Saved — reload the main page to see updated labels.';
+                    msg.style.color = '#4f4';
+                } else {
+                    msg.textContent = 'Error: ' + d.error;
+                    msg.style.color = '#f66';
+                }
+            } catch (e) {
+                msg.textContent = 'Error: ' + e.message;
+                msg.style.color = '#f66';
+            }
+        }
+
+        loadPins();
+    </script>
 </body>
 </html>
-

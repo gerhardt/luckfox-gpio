@@ -25,34 +25,43 @@
             display: flex;
             flex-wrap: wrap;
             align-items: center;
-            gap: 5px;
-            margin-top: 8px;
-            padding-top: 7px;
-            border-top: 1px solid rgba(255,255,255,0.07);
+            gap: 8px;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(0,255,255,0.15);
         }
         .pin-param-label {
-            color: #888;
-            font-size: 0.78em;
-            letter-spacing: 0.03em;
+            color: #00e5ff;
+            font-size: 1em;
+            font-weight: bold;
+            letter-spacing: 0.08em;
             white-space: nowrap;
+            text-shadow: 0 0 8px rgba(0,229,255,0.7);
+            text-transform: uppercase;
         }
         .pin-param-input {
-            width: 62px;
-            padding: 3px 6px;
-            border-radius: 4px;
-            border: 1px solid rgba(255,255,255,0.18);
-            background: rgba(0,0,0,0.3);
-            color: #e0e0e0;
-            font-size: 0.85em;
+            width: 72px;
+            padding: 5px 9px;
+            border-radius: 6px;
+            border: 1px solid rgba(0,229,255,0.45);
+            background: rgba(0,0,40,0.6);
+            color: #fff;
+            font-size: 1em;
+            font-weight: bold;
             text-align: right;
+            box-shadow: 0 0 8px rgba(0,229,255,0.2), inset 0 0 6px rgba(0,0,0,0.4);
+            transition: border-color 0.2s, box-shadow 0.2s;
         }
         .pin-param-input:focus {
             outline: none;
-            border-color: rgba(255,165,0,0.6);
+            border-color: rgba(255,165,0,0.8);
+            box-shadow: 0 0 14px rgba(255,165,0,0.5), inset 0 0 6px rgba(0,0,0,0.4);
         }
         .pin-param-unit {
-            color: #666;
-            font-size: 0.78em;
+            color: #00e5ff;
+            font-size: 0.95em;
+            font-weight: bold;
+            text-shadow: 0 0 6px rgba(0,229,255,0.5);
         }
         /* tighten button padding in cards */
         .pin-control-row button {
